@@ -40,6 +40,7 @@ class BallReplay:
 def calculate_speed_value(velocity):
     return np.linalg.norm(velocity)
 
+
 def calculate_angles(velocity):
     """
     Prompt:
@@ -57,6 +58,7 @@ def calculate_angles(velocity):
     vertical_angle_deg = np.degrees(vertical_angle)
 
     return horizontal_angle_deg, vertical_angle_deg
+
 
 def calculate_spin_rate(velocity, rotation):
     """

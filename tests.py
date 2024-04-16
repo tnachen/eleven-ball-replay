@@ -3,7 +3,7 @@ import write_replay as wr
 
 class TestBallCalculations(unittest.TestCase):
     def test_ball_angle(self):
-        velocity = [-2.07524824142456,-0.605385303497314,-4.46962261199951]
+        velocity = [-0.575682461261749, 2.51202392578125,8.06818103790283]
         print(wr.calculate_angles(velocity=velocity))
 
     def test_ball_rotation(self):

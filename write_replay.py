@@ -17,6 +17,13 @@ class BallHit:
     rotation: List[float]
 
 @dataclass
+class Game:
+    player1: Player
+    player2: Player
+    winner: Player
+    match_sets: List[BallHit]
+
+@dataclass
 class ReplayDirection:
     horizontalAngle: float
     verticalAngle: float
@@ -41,6 +48,10 @@ def calculate_speed_value(velocity):
     return np.linalg.norm(velocity)
 
 
+def normalize(v):
+    return v / np.linalg.norm(v)
+
+
 def calculate_angles(velocity):
     """
     Prompt:
@@ -60,37 +71,52 @@ def calculate_angles(velocity):
     return horizontal_angle_deg, vertical_angle_deg
 
 
-def calculate_spin_rate(velocity, rotation):
+def calculate_final_rotation(rotation_vec, velocity_vec):
     """
     Prompt:
-    given a velocity vector for a ball of x, y, z axis measured in meters per second,
-    and a rotation vector in x, y, z axis measured in degrees per second,
-    generate python code that can calculate the spin rate of the ball in full rotations per second in both topDown direction
-    and leftRight direction relative to the velocity vector direction.
+    -------
+    Given a velocity vector for a ball of x, y, z axis measured in meters per second, and a rotation vector in x, y, z axis measured in degrees per second,
+ generate python code that can calculate the spin rate of the ball in full rotations per second in both x, y and z direction along the axis of the velocity vector launch vector.
+   One example is rotation vector x=6709.05859375, y=-7512.5166015625,  z=-1004.12396240234 and velocity vector x=0.386714577674866, y=-1.87845945358276, z=-7.34596824645996, 
+   and the output should be  final rotation vector x=-18.46387396918403, y=19.2877197265625, z=8.81121080186632
     """
-    # Convert rotation vector from degrees per second to radians per second
-    rotation_radians = np.radians(rotation)
+    # Convert rotation from degrees per second to radians per second
+    rotation_vec_rad = np.radians(rotation_vec)
+    
+    # Normalizing the velocity vector to use as the new z-axis
+    z_axis = normalize(velocity_vec)
+    
+    # Arbitrarily choosing the global y-axis to find a perpendicular x-axis
+    if np.allclose(z_axis, [0, 1, 0]):
+        # If the velocity vector is vertical, use global x-axis instead
+        arbitrary_axis = np.array([1, 0, 0])
+    else:
+        arbitrary_axis = np.array([0, 1, 0])
+    
+    x_axis = normalize(np.cross(arbitrary_axis, z_axis))
+    y_axis = np.cross(z_axis, x_axis)
+    
+    # Creating rotation matrix from the new basis vectors
+    rotation_matrix = np.array([x_axis, y_axis, z_axis]).T
+    
+    # Transforming the rotation vector to the new coordinate system
+    new_rotation_vec_rad = rotation_matrix @ rotation_vec_rad
+    
+    # Convert radians per second back to degrees per second
+    new_rotation_vec_deg = np.degrees(new_rotation_vec_rad)
+    
+    # Convert from degrees per second to full rotations per second
+    final_rotation_vec = new_rotation_vec_deg / 360.0
+    
+    return final_rotation_vec
 
-    # Normalize velocity vector
-    velocity_normalized = velocity / np.linalg.norm(velocity)
-
-    # Compute angular velocity vector (cross product of velocity and rotation)
-    angular_velocity = np.cross(velocity_normalized, rotation_radians)
-
-    # Calculate spin rate in topDown direction
-    topDown_spin_rate = np.linalg.norm(angular_velocity[0]) / (2 * np.pi)
-
-    # Calculate spin rate in leftRight direction
-    leftRight_spin_rate = np.linalg.norm(angular_velocity[1]) / (2 * np.pi)
-
-    return topDown_spin_rate, leftRight_spin_rate
 
 
 def generate_id(size: int = 6) -> str:
     return ''.join(random.choice(string.ascii_letters.capitalize()) for _ in range(size))
 
 
-def read_game_log(file_path: str):
+def parse_match_events(file_path: str):
     with open(file_path, "r") as f:
         for line in f:
             return ""
@@ -98,13 +124,13 @@ def read_game_log(file_path: str):
 
 def convert_ball_hit_to_reply(name: str, ball_hit: BallHit) -> BallReplay:
     horizontal_angle, vertical_angle = calculate_angles(ball_hit.velocity)
-    top_bottom, left_right = calculate_spin_rate(ball_hit.velocity, ball_hit.rotation)
+    top_bottom, left_right, screw = calculate_final_rotation(ball_hit.velocity, ball_hit.rotation)
     return BallReplay(
         name=name,
         id=generate_id(),
         position=ball_hit.position,
         direction=ReplayDirection(horizontalAngle=horizontal_angle, verticalAngle=vertical_angle),
-        spin=ReplaySpin(topBottom=top_bottom, leftRight=left_right, screw=0),
+        spin=ReplaySpin(topBottom=top_bottom, leftRight=left_right, screw=screw),
         speedAndRate=calculate_speed_value(ball_hit.velocity))
 
 
